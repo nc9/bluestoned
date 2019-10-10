@@ -25,20 +25,31 @@ LOG = logging.getLogger("main")
 BLUE_LOWER = np.array([232 / 2, 0.81 * 255, 0.75 * 255])
 BLUE_UPPER = np.array([240 / 2, 1 * 255, 1 * 255])
 
-VALID_VIDEO_EXT = set([
-    ".mp4",
-    ".mkv",
-    ".avi",
-    # ".webm"
-])
+VALID_VIDEO_EXT = set(
+    [
+        ".mp4",
+        ".mkv",
+        ".avi",
+        # ".webm"
+    ]
+)
 
-VALID_IMAGE_EXT = set([
-    ".jpeg",
-    ".jpg",
-    ".png",
-])
+VALID_IMAGE_EXT = set(
+    [
+        ".jpeg",
+        ".jpg",
+        ".png"
+    ]
+)
 
-def analyze_image(img_file, threshold=0, show_detections=False, save_detections=False, save_detections_path=None):
+
+def analyze_image(
+    img_file,
+    threshold=0,
+    show_detections=False,
+    save_detections=False,
+    save_detections_path=None,
+):
     LOG.info("Analyzing image %s", img_file)
 
     if not os.path.isfile(img_file):
@@ -48,11 +59,7 @@ def analyze_image(img_file, threshold=0, show_detections=False, save_detections=
     mask, mask_count = _get_mask_for_frame(frame)
 
     if mask_count > threshold:
-        LOG.info(
-            "Found screen mask %d in image %s",
-            mask_count,
-            img_file
-        )
+        LOG.info("Found screen mask %d in image %s", mask_count, img_file)
 
         _draw_bounding_boxes(frame, mask, mask_count)
 
@@ -71,31 +78,30 @@ def analyze_image(img_file, threshold=0, show_detections=False, save_detections=
 
         # keep the image open until the user hits q
         while True:
-            if cv2.waitKey(5) & 0xFF == ord('q'):
+            if cv2.waitKey(5) & 0xFF == ord("q"):
                 break
 
     if save_detections:
-        result_filepath = os.path.join(
-            result_directory,
-            result_filename,
-        )
+        result_filepath = os.path.join(result_directory, result_filename)
 
-        LOG.info(
-            "Saving result file to %s",
-            result_filepath
-        )
+        LOG.info("Saving result file to %s", result_filepath)
 
-        cv2.imwrite(
-            result_filepath,
-            frame
-        )
-
+        cv2.imwrite(result_filepath, frame)
 
     cv2.destroyAllWindows()
 
     return True
 
-def analyze_video(video_file, threshold=0, max_only=True, output_video=None, show_detections=False, save_detections=False, save_detections_path=None):
+
+def analyze_video(
+    video_file,
+    threshold=0,
+    max_only=True,
+    output_video=None,
+    show_detections=False,
+    save_detections=False,
+    save_detections_path=None,
+):
     """
     analyze a video to spot bluescreens/chroma keys and write the result
 
@@ -124,7 +130,7 @@ def analyze_video(video_file, threshold=0, max_only=True, output_video=None, sho
         fps,
         frame_width,
         frame_height,
-        frame_total_length
+        frame_total_length,
     )
 
     out = None
@@ -143,28 +149,23 @@ def analyze_video(video_file, threshold=0, max_only=True, output_video=None, sho
         output_video_extension = "mp4"
 
         output_video_file = "{}-output.{}".format(
-            os.path.splitext(video_file)[0],
-            output_video_extension
+            os.path.splitext(video_file)[0], output_video_extension
         )
 
-        output_video_path = os.path.join(
-            result_directory,
-            output_video_file
-        )
+        output_video_path = os.path.join(result_directory, output_video_file)
 
         out = cv2.VideoWriter(
             output_video_path,
-            cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), # @TODO this is a shit format find something better
+            cv2.VideoWriter_fourcc(
+                "M", "J", "P", "G"
+            ),  # @TODO this is a shit format find something better
             10,
-            (frame_width, frame_height)
+            (frame_width, frame_height),
         )
 
-        LOG.verbose(
-            "Saving output video to %s",
-            output_video_path
-        )
+        LOG.verbose("Saving output video to %s", output_video_path)
 
-    pbar = tqdm(total=frame_total_length, unit="frames", )
+    pbar = tqdm(total=frame_total_length, unit="frames")
 
     while cap.isOpened():
         success, frame = cap.read()
@@ -177,7 +178,7 @@ def analyze_video(video_file, threshold=0, max_only=True, output_video=None, sho
         frame_count += 1
 
         # this is a bit of a hack but we know the source is < 60fps
-        if (int(fps) == 60 and (frame_count % 2 == 0)):
+        if int(fps) == 60 and (frame_count % 2 == 0):
             pbar.update(1)
             continue
 
@@ -195,31 +196,24 @@ def analyze_video(video_file, threshold=0, max_only=True, output_video=None, sho
                 "Mask count %d found in %s at %s",
                 max_mask_count,
                 video_file,
-                _time_conver_ms_to_timestring(max_mask_time)
+                _time_conver_ms_to_timestring(max_mask_time),
             )
 
             result_filename = _get_result_filename(video_file, "jpeg", detections)
 
-            _draw_timestamp(max_mask_frame, "{} ({})".format(
-                _time_conver_ms_to_timestring(max_mask_time),
-                max_mask_count
-            ))
+            _draw_timestamp(
+                max_mask_frame,
+                "{} ({})".format(
+                    _time_conver_ms_to_timestring(max_mask_time), max_mask_count
+                ),
+            )
 
             if save_detections:
-                result_filepath = os.path.join(
-                    result_directory,
-                    result_filename,
-                )
+                result_filepath = os.path.join(result_directory, result_filename)
 
-                LOG.info(
-                    "Saving result file to %s",
-                    result_filepath
-                )
+                LOG.info("Saving result file to %s", result_filepath)
 
-                cv2.imwrite(
-                    result_filepath,
-                    max_mask_frame
-                )
+                cv2.imwrite(result_filepath, max_mask_frame)
 
             if show_detections:
                 cv2.imshow(result_filename, max_mask_frame)
@@ -235,7 +229,7 @@ def analyze_video(video_file, threshold=0, max_only=True, output_video=None, sho
                 mask_count,
                 video_file,
                 _time_conver_ms_to_timestring(cap.get(cv2.CAP_PROP_POS_MSEC)),
-                frame_count
+                frame_count,
             )
 
             frame = _draw_bounding_boxes(frame, mask, mask_count)
@@ -249,7 +243,7 @@ def analyze_video(video_file, threshold=0, max_only=True, output_video=None, sho
         if out:
             out.write(frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     if out:
@@ -266,10 +260,11 @@ def analyze_video(video_file, threshold=0, max_only=True, output_video=None, sho
         frame_count,
         video_file,
         detections,
-        _time_conver_ms_to_timestring(start_time - time_finish)
+        _time_conver_ms_to_timestring(start_time - time_finish),
     )
 
     return True
+
 
 def _get_mask_for_frame(frame):
     " for a frame get the mask pixel count "
@@ -279,6 +274,7 @@ def _get_mask_for_frame(frame):
     mask = cv2.inRange(frame_hsv, BLUE_LOWER, BLUE_UPPER)
     mask_count = cv2.countNonZero(mask)
     return mask, mask_count
+
 
 def _draw_bounding_boxes(frame, mask, mask_count=0):
     " draw the bounding boxes on the frame based on the mask "
@@ -303,7 +299,8 @@ def _draw_bounding_boxes(frame, mask, mask_count=0):
     cv2.rectangle(frame, (x - 30, y - 30), (x + w + 60, y + h + 60), rec_color, rec_size)
     return frame
 
-def _draw_timestamp(frame, timestamp, height_from_bottom = 30):
+
+def _draw_timestamp(frame, timestamp, height_from_bottom=30):
     _height, _width, _ = frame.shape
     _font = cv2.FONT_HERSHEY_PLAIN
     _color = (255, 255, 255)
@@ -330,6 +327,7 @@ def _get_result_filename(filename, extension=None, index=None):
 
     return "{}-result{}.{}".format(file_name, index_format, file_extension)
 
+
 def _time_conver_ms_to_timestring(millis):
     " convert millisecond time delta as a float into a string describing time in HH:mm:ss "
     millis = float(millis)
@@ -337,6 +335,7 @@ def _time_conver_ms_to_timestring(millis):
     minutes = (millis / (1000 * 60)) % 60
     hours = (millis / (1000 * 60 * 60)) % 24
     return "{0:02d}:{1:02d}.{2:02d}".format(int(hours), int(minutes), int(seconds))
+
 
 def _setup_logger(verbosity, log_file):
     log = logging.getLogger("main")
@@ -368,6 +367,7 @@ def _setup_logger(verbosity, log_file):
 
     return log
 
+
 def analyze_dir(_dir, **kwargs):
     """ walk a directory and analyze videos """
     if not os.path.isdir(_dir):
@@ -386,6 +386,7 @@ def analyze_dir(_dir, **kwargs):
 
     return ret
 
+
 def analyze_file(_file, **kwargs):
     _file_ex = os.path.splitext(_file)[1]
 
@@ -400,66 +401,60 @@ def analyze_file(_file, **kwargs):
 
     return False
 
-def main():
-    parser = argparse.ArgumentParser(
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("path", help="Path or file to evaluate")
+    parser.add_argument(
+        "-o", dest="save_video", help="save output video with bounding boxes"
     )
     parser.add_argument(
-        "path",
-        help="Path or file to evaluate"
-    )
-    parser.add_argument(
-        "-o",
-        dest="save_video",
-        help="save output video with bounding boxes"
-    )
-    parser.add_argument(
-        "-s", "--save",
+        "-s",
+        "--save",
         dest="save_detections",
         action="store_true",
         default=False,
-        help="save detections as images"
+        help="save detections as images",
     )
     parser.add_argument(
-        "-t", "--threshold",
+        "-t",
+        "--threshold",
         dest="threshold",
         default=3,
         type=int,
-        help="set threshold (default: 3)"
+        help="set threshold (default: 3)",
     )
-    parser.add_argument(
-        "-f",
-        dest="log_file",
-        default=None,
-        help="save logs to file"
-    )
+    parser.add_argument("-f", dest="log_file", default=None, help="save logs to file")
     parser.add_argument(
         "-p",
         dest="save_detections_path",
         default="output",
-        help="save detection images to path (default: output)"
+        help="save detection images to path (default: output)",
     )
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="count",
         dest="verbosity",
         default=0,
-        help="verbose output (repeat for increased verbosity)"
+        help="verbose output (repeat for increased verbosity)",
     )
     parser.add_argument(
-        "-d", "--debug",
+        "-d",
+        "--debug",
         dest="debug",
         action="store_true",
         default=False,
-        help="run in debug mode"
+        help="run in debug mode",
     )
     parser.add_argument(
-        "-q", "--quiet",
+        "-q",
+        "--quiet",
         action="store_const",
         const=-1,
         default=0,
         dest="verbosity",
-        help="quiet output (show errors only)"
+        help="quiet output (show errors only)",
     )
     args = parser.parse_args()
 
@@ -470,9 +465,7 @@ def main():
 
     LOG.debug("Running with %s %r", sys.argv, args)
 
-    _path = os.path.realpath(
-        args.path
-    )
+    _path = os.path.realpath(args.path)
 
     if os.path.isdir(_path):
         analyze_dir(
@@ -480,14 +473,14 @@ def main():
             threshold=args.threshold,
             output_video=args.save_video,
             save_detections=args.save_detections,
-            save_detections_path=args.save_detections_path
+            save_detections_path=args.save_detections_path,
         )
     else:
         analyze_file(
             _path,
             threshold=args.threshold,
             save_detections=bool(args.save_detections),
-            save_detections_path=args.save_detections
+            save_detections_path=args.save_detections,
         )
 
 
@@ -498,5 +491,5 @@ if __name__ == "__main__":
         print("Interrupted")
     except Exception as err:
         LOG.error(str(err))
-        LOG.debug('', exc_info=True)
+        LOG.debug("", exc_info=True)
         sys.exit(1)
