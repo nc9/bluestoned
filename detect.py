@@ -18,8 +18,20 @@ logging.basicConfig(
 BLUE_LOWER = np.array([232 / 2, 0.81 * 255, 0.75 * 255])
 BLUE_UPPER = np.array([240 / 2, 1 * 255, 1 * 255])
 
+VALID_VIDEO_EXT = set([
+    ".mp4",
+    ".mkv",
+    ".avi",
+    # ".webm"
+])
 
-def analyze_image(img_file, show_result=False, save_result=False, save_path=None):
+VALID_IMAGE_EXT = set([
+    ".jpeg",
+    ".jpg",
+    ".png",
+])
+
+def analyze_image(img_file, show_detections=False, save_detections=False, save_detections_path=None):
     if not os.path.isfile(img_file):
         raise Exception("Not an image: {}".format(img_file))
 
@@ -35,12 +47,17 @@ def analyze_image(img_file, show_result=False, save_result=False, save_path=None
 
         _draw_bounding_boxes(frame, mask, mask_count)
 
+    result_directory = "outputs" if not save_detections_path else save_detections_path
+    result_directory = os.path.realpath(os.path.expanduser(result_directory))
+
+    if not os.path.isdir(result_directory):
+        os.mkdir(result_directory)
+
     result_filename = _get_result_filename(img_file)
-    result_directory = os.getcwd() if not save_path else save_path
 
     _draw_timestamp(frame, " {}".format(mask_count))
 
-    if show_result:
+    if show_detections:
         cv2.imshow(result_filename, frame)
 
         # keep the image open until the user hits q
@@ -48,13 +65,13 @@ def analyze_image(img_file, show_result=False, save_result=False, save_path=None
             if cv2.waitKey(5) & 0xFF == ord('q'):
                 break
 
-    if save_result:
+    if save_detections:
         result_filepath = os.path.join(
             result_directory,
             result_filename,
         )
 
-        logging.debug(
+        logging.info(
             "Saving result file to %s",
             result_filepath
         )
@@ -105,12 +122,35 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
     max_mask_frame = None
     detections = 0
 
+    result_directory = "outputs" if not save_detections_path else save_detections_path
+    result_directory = os.path.realpath(os.path.expanduser(result_directory))
+
+    if not os.path.isdir(result_directory):
+        os.mkdir(result_directory)
+
     if output_video:
+        output_video_extension = "mp4"
+
+        output_video_file = "{}-output.{}".format(
+            os.path.splitext(video_file)[0],
+            output_video_extension
+        )
+
+        output_video_path = os.path.join(
+            result_directory,
+            output_video_file
+        )
+
         out = cv2.VideoWriter(
-            output_video,
+            output_video_path,
             cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), # @TODO this is a shit format find something better
             10,
             (frame_width, frame_height)
+        )
+
+        logging.info(
+            "Saving output video to %s",
+            output_video_path
         )
 
     pbar = tqdm(total=frame_total_length, unit="frames", )
@@ -126,6 +166,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
         frame_count += 1
         time_cur = time.time()
 
+        # this is a bit of a hack but we know the source is < 60fps
         if (int(fps) == 60 and (frame_count % 2 == 0)):
             pbar.update(1)
             continue
@@ -148,12 +189,6 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
             )
 
             result_filename = _get_result_filename(video_file, "jpeg", detections)
-            result_directory = "outputs" if not save_detections_path else save_detections_path
-
-            result_directory = os.path.realpath(os.path.expanduser(result_directory))
-
-            if not os.path.isdir(result_directory):
-                os.mkdir(result_directory)
 
             _draw_timestamp(max_mask_frame, "{} ({})".format(
                 _time_conver_ms_to_timestring(max_mask_time),
@@ -288,20 +323,27 @@ def _time_conver_ms_to_timestring(millis):
     hours = (millis / (1000 * 60 * 60)) % 24
     return "{0:02d}:{1:02d}.{2:02d}".format(int(hours), int(minutes), int(seconds))
 
-def analyze_image_dir(_dir):
-    """ walk a directory listing and read and process all found images """
+def analyze_dir(_dir, **kwargs):
+    """ walk a directory and analyze videos """
     if not os.path.isdir(_dir):
         raise Exception("Invalid directory: {}".format(_dir))
 
     for file_name in os.listdir(_dir):
-        analyze_image("{}/{}".format(_dir, file_name))
+        _file_ex = os.path.splitext(file_name)[1]
+
+        if _file_ex in VALID_VIDEO_EXT:
+            analyze_video(os.path.join(_dir, file_name), **kwargs)
+
+        if _file_ex in VALID_IMAGE_EXT:
+            analyze_image(os.path.join(_dir, file_name), **kwargs)
 
 if __name__ == "__main__":
     try:
         # analyze_image("images/rda-907.jpeg", save_result=True)
         # listdir("ex02")
         # main()
-        analyze_video("videos/rda-flash.mp4", save_detections=True)
+        analyze_dir("videos", save_detections=True)
+        # analyze_video("videos/rda-flash.mp4", save_detections=True)
     except KeyboardInterrupt:
         logging.error("Interrupted")
     except Exception as ex:
