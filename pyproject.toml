@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "bluestoned"
-version = "0.1.0"
-description = "find bluescreen chroma keys or other color rangers in video files and images using OpenCV"
+version = "0.1.1"
+description = "Find bluescreen chroma keys or other color rangers in video files and images using OpenCV"
 authors = ["Nik Cubrilovic <git@nikcub.me>"]
 license = "MIT"
 
