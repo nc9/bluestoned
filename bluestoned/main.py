@@ -155,7 +155,7 @@ def analyze_video(
 
     out = None
     max_mask_count = 0
-    max_mask_time = 0
+    max_mask_time = None
     max_mask_frame = None
     detections = 0
 
@@ -205,10 +205,6 @@ def analyze_video(
             pbar.update(1)
             continue
 
-        # if (int(time_cur - start_time)) > fps_read_rate:
-        #     start_time = time_cur
-        #     continue
-
         frames_processed += 1
         pbar.update(1)
 
@@ -223,13 +219,6 @@ def analyze_video(
             )
 
             result_filename = _get_result_filename(video_file, "jpeg", detections)
-
-            _draw_timestamp(
-                max_mask_frame,
-                "{} ({})".format(
-                    _time_conver_ms_to_timestring(max_mask_time), max_mask_count
-                ),
-            )
 
             if save_detections:
                 result_filepath = os.path.join(result_directory, result_filename)
@@ -247,21 +236,28 @@ def analyze_video(
             max_mask_count = 0
 
         if mask_count > threshold:
+            max_mask_time = cap.get(cv2.CAP_PROP_POS_MSEC)
+
             LOG.verbose(
                 "Mask count %d found in %s at %s (%d)",
                 mask_count,
                 video_file,
-                _time_conver_ms_to_timestring(cap.get(cv2.CAP_PROP_POS_MSEC)),
+                _time_conver_ms_to_timestring(max_mask_time),
                 frame_count,
             )
 
             frame = _draw_bounding_boxes(frame, mask, mask_count)
 
+            _draw_timestamp(
+                frame,
+                "{} ({})".format(
+                    _time_conver_ms_to_timestring(max_mask_time), mask_count
+                ),
+            )
+
             # save the peak mask_count frame for this detection
             if mask_count > max_mask_count:
-                max_mask_count = mask_count
                 max_mask_frame = frame
-                max_mask_time = cap.get(cv2.CAP_PROP_POS_MSEC)
 
         if out:
             out.write(frame)
@@ -405,6 +401,7 @@ def analyze_dir(_dir, **kwargs):
             ret += analyze_video(os.path.join(_dir, file_name), **kwargs)
 
         if _file_ex in VALID_IMAGE_EXT:
+            kwargs.pop("output_video")
             ret += analyze_image(os.path.join(_dir, file_name), **kwargs)
 
     return ret
@@ -486,7 +483,7 @@ def main():
 
     _setup_logger(args.verbosity, args.log_file)
 
-    print("bluestoned v%s".format(__version__))
+    print("bluestoned v{}".format(__version__))
 
     LOG.debug("Running with %s \n %r", sys.argv, args)
     LOG.debug("OpenCV version %s", cv2.__version__)
