@@ -92,6 +92,7 @@ def analyze_image(img_file, threshold=0, show_detections=False, save_detections=
 
 
     cv2.destroyAllWindows()
+
     return True
 
 def analyze_video(video_file, threshold=0, max_only=True, output_video=None, show_detections=False, save_detections=False, save_detections_path=None):
@@ -446,6 +447,13 @@ def main():
         help="verbose output (repeat for increased verbosity)"
     )
     parser.add_argument(
+        "-d", "--debug",
+        dest="debug",
+        action="store_true",
+        default=False,
+        help="run in debug mode"
+    )
+    parser.add_argument(
         "-q", "--quiet",
         action="store_const",
         const=-1,
@@ -455,7 +463,12 @@ def main():
     )
     args = parser.parse_args()
 
+    if args.debug:
+        args.verbosity = 5
+
     _setup_logger(args.verbosity, args.log_file)
+
+    LOG.debug("Running with %s %r", sys.argv, args)
 
     _path = os.path.realpath(
         args.path
