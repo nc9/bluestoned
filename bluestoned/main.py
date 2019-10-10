@@ -11,7 +11,13 @@ import os
 import sys
 import time
 import logging
-import cv2
+
+try:
+    import cv2
+except ImportError:
+    print("Error importing opencv make sure all requirements are satisfied.")
+    print("see OpenCV install docs for your platform")
+
 import numpy as np
 import verboselogs
 from tqdm import tqdm
