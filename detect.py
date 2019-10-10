@@ -32,10 +32,12 @@ def analyze_image(img_file, show_result=False, save_result=False, save_path=None
             img_file
         )
 
-        frame = _draw_bounding_boxes(frame, mask, mask_count)
+        _draw_bounding_boxes(frame, mask, mask_count)
 
     result_filename = _get_result_filename(img_file)
     result_directory = os.getcwd() if not save_path else None
+
+    _draw_timestamp(frame, "20:00:00")
 
     if show_result:
         cv2.imshow(result_filename, frame)
@@ -195,6 +197,28 @@ def _draw_bounding_boxes(frame, mask, mask_count=0):
 
     cv2.rectangle(frame, (x - 30, y - 30), (x + w + 60, y + h + 60), rec_color, rec_size)
     return frame
+
+def _draw_timestamp(frame, timestamp, height_from_bottom = 30):
+    _height, _width, _ = frame.shape
+    _font = cv2.FONT_HERSHEY_PLAIN
+    _color = (255, 255, 255)
+
+    text_y = _height - height_from_bottom
+
+    logging.debug("Writing timestamp {} at {} ".format(
+        timestamp,
+        text_y,
+        _font,
+        _color
+    ))
+
+    try:
+        cv2.putText(frame, str(timestamp), (50, text_y), _font, 4, _color, 3, cv2.LINE_AA)
+        return True
+    except Exception as ex:
+        logging.error("Could not write timestamp to frame: %s", str(ex))
+        return False
+
 
 def _get_result_filename(filename):
     _components = os.path.splitext(os.path.basename(filename))
