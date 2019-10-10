@@ -35,9 +35,9 @@ def analyze_image(img_file, show_result=False, save_result=False, save_path=None
         _draw_bounding_boxes(frame, mask, mask_count)
 
     result_filename = _get_result_filename(img_file)
-    result_directory = os.getcwd() if not save_path else None
+    result_directory = os.getcwd() if not save_path else save_path
 
-    _draw_timestamp(frame, "Pixels detected: {}".format(mask_count))
+    _draw_timestamp(frame, " {}".format(mask_count))
 
     if show_result:
         cv2.imshow(result_filename, frame)
@@ -142,7 +142,12 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
             )
 
             result_filename = _get_result_filename(video_file, "jpeg", detections)
-            result_directory = os.getcwd() if not save_detections_path else None
+            result_directory = "outputs" if not save_detections_path else save_detections_path
+
+            result_directory = os.path.realpath(os.path.expanduser(result_directory))
+
+            if not os.path.isdir(result_directory):
+                os.mkdir(result_directory)
 
             _draw_timestamp(max_mask_frame, "{} ({})".format(
                 _time_conver_ms_to_timestring(max_mask_time),
@@ -155,7 +160,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
                     result_filename,
                 )
 
-                logging.debug(
+                logging.info(
                     "Saving result file to %s",
                     result_filepath
                 )
