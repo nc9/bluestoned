@@ -40,13 +40,7 @@ VALID_VIDEO_EXT = set(
     ]
 )
 
-VALID_IMAGE_EXT = set(
-    [
-        ".jpeg",
-        ".jpg",
-        ".png"
-    ]
-)
+VALID_IMAGE_EXT = set([".jpeg", ".jpg", ".png"])
 
 
 def analyze_image(
@@ -56,6 +50,13 @@ def analyze_image(
     save_detections=False,
     save_detections_path=None,
 ):
+    LOG.debug(
+        "Running analyze_image with img_file=%s save_detections=%s save_detections_path=%s",
+        img_file,
+        save_detections,
+        save_detections_path,
+    )
+
     LOG.info("Analyzing image %s", img_file)
 
     if not os.path.isfile(img_file):
@@ -69,10 +70,13 @@ def analyze_image(
 
         _draw_bounding_boxes(frame, mask, mask_count)
 
-    result_directory = "outputs" if not save_detections_path else save_detections_path
-    result_directory = os.path.realpath(os.path.expanduser(result_directory))
+    result_directory = "output" if not save_detections_path else save_detections_path
+    result_directory = os.path.realpath(result_directory)
+    LOG.debug("Setting results directory to %s", result_directory)
 
     if not os.path.isdir(result_directory):
+        LOG.debug("No results directory so creating")
+
         os.mkdir(result_directory)
 
     result_filename = _get_result_filename(img_file)
@@ -113,6 +117,14 @@ def analyze_video(
 
 
     """
+
+    LOG.debug(
+        "Running analyze_video with video_file=%s save_detections=%s save_detections_path=%s",
+        video_file,
+        save_detections,
+        save_detections_path,
+    )
+
     if not os.path.isfile(video_file):
         raise Exception("Invalid video file: {}".format(video_file))
 
@@ -147,8 +159,11 @@ def analyze_video(
 
     result_directory = "outputs" if not save_detections_path else save_detections_path
     result_directory = os.path.realpath(os.path.expanduser(result_directory))
+    LOG.debug("Setting results directory to %s", result_directory)
 
     if not os.path.isdir(result_directory):
+        LOG.debug("No results directory so creating")
+
         os.mkdir(result_directory)
 
     if output_video:
@@ -486,7 +501,7 @@ def main():
             _path,
             threshold=args.threshold,
             save_detections=bool(args.save_detections),
-            save_detections_path=args.save_detections,
+            save_detections_path=args.save_detections_path,
         )
 
 
@@ -499,6 +514,7 @@ def cli():
         LOG.error(str(err))
         LOG.debug("", exc_info=True)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     cli()
