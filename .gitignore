@@ -3,3 +3,4 @@ images/
 .vscode/
 *.jpeg
 __pycache__
+dist/
