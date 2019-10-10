@@ -6,6 +6,7 @@
     (c) 2019 Nik Cubrilovic <git@nikcub.me>
 
 """
+import argparse
 import os
 import sys
 import time
@@ -15,10 +16,9 @@ import numpy as np
 import verboselogs
 from tqdm import tqdm
 
-log = verboselogs.VerboseLogger(__name__)
-log.addHandler(logging.StreamHandler())
-log.setLevel(logging.INFO)
+verboselogs.install()
 
+LOG = logging.getLogger("main")
 
 # this is the upper and lower blue color bounds we are searching for
 # opencv HSV values differ from most image editing programs hence the calcs
@@ -38,15 +38,17 @@ VALID_IMAGE_EXT = set([
     ".png",
 ])
 
-def analyze_image(img_file, show_detections=False, save_detections=False, save_detections_path=None):
+def analyze_image(img_file, threshold=0, show_detections=False, save_detections=False, save_detections_path=None):
+    LOG.info("Analyzing image %s", img_file)
+
     if not os.path.isfile(img_file):
         raise Exception("Not an image: {}".format(img_file))
 
     frame = cv2.imread(img_file)
     mask, mask_count = _get_mask_for_frame(frame)
 
-    if mask_count:
-        logger.debug(
+    if mask_count > threshold:
+        LOG.info(
             "Found screen mask %d in image %s",
             mask_count,
             img_file
@@ -78,7 +80,7 @@ def analyze_image(img_file, show_detections=False, save_detections=False, save_d
             result_filename,
         )
 
-        log.info(
+        LOG.info(
             "Saving result file to %s",
             result_filepath
         )
@@ -90,8 +92,9 @@ def analyze_image(img_file, show_detections=False, save_detections=False, save_d
 
 
     cv2.destroyAllWindows()
+    return True
 
-def analyze_video(video_file, max_only=True, output_video=None, show_detections=False, save_detections=False, save_detections_path=None):
+def analyze_video(video_file, threshold=0, max_only=True, output_video=None, show_detections=False, save_detections=False, save_detections_path=None):
     """
     analyze a video to spot bluescreens/chroma keys and write the result
 
@@ -114,7 +117,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
     frame_height = int(cap.get(4))
     frame_total_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    log.info(
+    LOG.info(
         "Opened %s (%ffps %dx%d) with %s total frames",
         video_file,
         fps,
@@ -155,7 +158,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
             (frame_width, frame_height)
         )
 
-        log.info(
+        LOG.verbose(
             "Saving output video to %s",
             output_video_path
         )
@@ -166,7 +169,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
         success, frame = cap.read()
 
         if not success:
-            log.info("End of video")
+            LOG.verbose("End of video")
             pbar.update(frame_total_length)
             break
 
@@ -187,7 +190,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
         mask, mask_count = _get_mask_for_frame(frame)
 
         if not mask_count and max_mask_count:
-            log.info(
+            LOG.info(
                 "Mask count %d found in %s at %s",
                 max_mask_count,
                 video_file,
@@ -207,7 +210,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
                     result_filename,
                 )
 
-                log.info(
+                LOG.info(
                     "Saving result file to %s",
                     result_filepath
                 )
@@ -225,8 +228,8 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
         if not mask_count:
             max_mask_count = 0
 
-        if mask_count:
-            log.debug(
+        if mask_count > threshold:
+            LOG.verbose(
                 "Mask count %d found in %s at %s (%d)",
                 mask_count,
                 video_file,
@@ -256,14 +259,16 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
 
     time_finish = time.time()
 
-    log.info(
+    LOG.info(
         "Processed %d of %d frames in %s and found %d key frames in %s",
         frames_processed,
         frame_count,
         video_file,
         detections,
-        _time_conver_ms_to_timestring(time_finish - start_time)
+        _time_conver_ms_to_timestring(start_time - time_finish)
     )
+
+    return True
 
 def _get_mask_for_frame(frame):
     " for a frame get the mask pixel count "
@@ -308,7 +313,7 @@ def _draw_timestamp(frame, timestamp, height_from_bottom = 30):
         cv2.putText(frame, str(timestamp), (50, text_y), _font, 4, _color, 3, cv2.LINE_AA)
         return True
     except Exception as ex:
-        log.error("Could not write timestamp to frame: %s", str(ex))
+        LOG.error("Could not write timestamp to frame: %s", str(ex))
         return False
 
 
@@ -319,7 +324,7 @@ def _get_result_filename(filename, extension=None, index=None):
     file_extension = extension or _components[1][1:]
     index_format = ""
 
-    if type(index) is int:
+    if isinstance(index, int):
         index_format = "-{0:05d}".format(index)
 
     return "{}-result{}.{}".format(file_name, index_format, file_extension)
@@ -332,29 +337,153 @@ def _time_conver_ms_to_timestring(millis):
     hours = (millis / (1000 * 60 * 60)) % 24
     return "{0:02d}:{1:02d}.{2:02d}".format(int(hours), int(minutes), int(seconds))
 
+def _setup_logger(verbosity, log_file):
+    log = logging.getLogger("main")
+
+    for h in log.handlers:
+        log.removeHandler(h)
+
+    log_formatter = logging.Formatter("[%(levelname)s] %(message)s")
+
+    sh = logging.StreamHandler()
+    sh.setFormatter(log_formatter)
+    log.addHandler(sh)
+
+    if log_file:
+        fh = logging.FileHandler(filename=log_file)
+        fh.setFormatter(log_formatter)
+        log.addHandler(fh)
+
+    log.setLevel(logging.INFO)
+
+    if verbosity >= 2:
+        log.setLevel(logging.DEBUG)
+    elif verbosity >= 1:
+        log.setLevel(logging.VERBOSE)
+    elif verbosity >= 0:
+        log.setLevel(logging.INFO)
+    else:
+        log.setLevel(logging.ERROR)
+
+    return log
+
 def analyze_dir(_dir, **kwargs):
     """ walk a directory and analyze videos """
     if not os.path.isdir(_dir):
         raise Exception("Invalid directory: {}".format(_dir))
 
+    ret = 0
+
     for file_name in os.listdir(_dir):
         _file_ex = os.path.splitext(file_name)[1]
 
         if _file_ex in VALID_VIDEO_EXT:
-            analyze_video(os.path.join(_dir, file_name), **kwargs)
+            ret += analyze_video(os.path.join(_dir, file_name), **kwargs)
 
         if _file_ex in VALID_IMAGE_EXT:
-            analyze_image(os.path.join(_dir, file_name), **kwargs)
+            ret += analyze_image(os.path.join(_dir, file_name), **kwargs)
+
+    return ret
+
+def analyze_file(_file, **kwargs):
+    _file_ex = os.path.splitext(_file)[1]
+
+    if _file_ex in VALID_VIDEO_EXT:
+        return analyze_video(_file, **kwargs)
+
+    elif _file_ex in VALID_IMAGE_EXT:
+        return analyze_image(_file, **kwargs)
+
+    else:
+        raise Exception("Not a valid path {}".format(_file))
+
+    return False
+
+def main():
+    parser = argparse.ArgumentParser(
+
+    )
+    parser.add_argument(
+        "path",
+        help="Path or file to evaluate"
+    )
+    parser.add_argument(
+        "-o",
+        dest="save_video",
+        help="save output video with bounding boxes"
+    )
+    parser.add_argument(
+        "-s", "--save",
+        dest="save_detections",
+        action="store_true",
+        default=False,
+        help="save detections as images"
+    )
+    parser.add_argument(
+        "-t", "--threshold",
+        dest="threshold",
+        default=3,
+        type=int,
+        help="set threshold (default: 3)"
+    )
+    parser.add_argument(
+        "-f",
+        dest="log_file",
+        default=None,
+        help="save logs to file"
+    )
+    parser.add_argument(
+        "-p",
+        dest="save_detections_path",
+        default="output",
+        help="save detection images to path (default: output)"
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="count",
+        dest="verbosity",
+        default=0,
+        help="verbose output (repeat for increased verbosity)"
+    )
+    parser.add_argument(
+        "-q", "--quiet",
+        action="store_const",
+        const=-1,
+        default=0,
+        dest="verbosity",
+        help="quiet output (show errors only)"
+    )
+    args = parser.parse_args()
+
+    _setup_logger(args.verbosity, args.log_file)
+
+    _path = os.path.realpath(
+        args.path
+    )
+
+    if os.path.isdir(_path):
+        analyze_dir(
+            _path,
+            threshold=args.threshold,
+            output_video=args.save_video,
+            save_detections=args.save_detections,
+            save_detections_path=args.save_detections_path
+        )
+    else:
+        analyze_file(
+            _path,
+            threshold=args.threshold,
+            save_detections=bool(args.save_detections),
+            save_detections_path=args.save_detections
+        )
+
 
 if __name__ == "__main__":
     try:
-        # analyze_image("images/rda-907.jpeg", save_result=True)
-        # listdir("ex02")
-        # main()
-        analyze_dir("videos", save_detections=True)
-        # analyze_video("videos/rda-flash.mp4", save_detections=True)
+        sys.exit(main())
     except KeyboardInterrupt:
-        log.error("Interrupted")
-    except Exception as ex:
-        log.error(str(ex))
-        log.exception(ex)
+        print("Interrupted")
+    except Exception as err:
+        LOG.error(str(err))
+        LOG.debug('', exc_info=True)
+        sys.exit(1)
