@@ -7,6 +7,7 @@ import time
 import logging
 import cv2
 import numpy as np
+from tqdm import tqdm
 
 logging.basicConfig(
     level=logging.DEBUG
@@ -112,17 +113,21 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
             (frame_width, frame_height)
         )
 
+    pbar = tqdm(total=frame_total_length, unit="frames", )
+
     while cap.isOpened():
         success, frame = cap.read()
 
         if not success:
             logging.info("End of video")
+            pbar.update(frame_total_length)
             break
 
         frame_count += 1
         time_cur = time.time()
 
         if (int(fps) == 60 and (frame_count % 2 == 0)):
+            pbar.update(1)
             continue
 
         if (int(time_cur - start_time)) > fps_read_rate:
@@ -130,6 +135,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
             continue
 
         frames_processed += 1
+        pbar.update(1)
 
         mask, mask_count = _get_mask_for_frame(frame)
 
@@ -207,7 +213,13 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
     cap.release()
     cv2.destroyAllWindows()
 
-    logging.info("Processed %d of %d frames", frames_processed, frame_count)
+    logging.info(
+        "Processed %d of %d frames in %s and found %d key frames",
+        frames_processed,
+        frame_count,
+        video_file,
+        detections
+    )
 
 def _get_mask_for_frame(frame):
     " for a frame get the mask pixel count "

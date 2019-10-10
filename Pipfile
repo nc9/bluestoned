@@ -10,6 +10,7 @@ pylint = "*"
 opencv-python = "*"
 numpy = "*"
 imutils = "*"
+tqdm = "*"
 
 [requires]
 python_version = "3.7"
