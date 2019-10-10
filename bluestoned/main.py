@@ -484,7 +484,7 @@ def main():
         )
 
 
-if __name__ == "__main__":
+def cli():
     try:
         sys.exit(main())
     except KeyboardInterrupt:
@@ -493,3 +493,6 @@ if __name__ == "__main__":
         LOG.error(str(err))
         LOG.debug("", exc_info=True)
         sys.exit(1)
+
+if __name__ == "__main__":
+    cli()

@@ -2,3 +2,4 @@ videos/
 images/
 .vscode/
 *.jpeg
+__pycache__
