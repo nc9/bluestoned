@@ -12,11 +12,13 @@ import time
 import logging
 import cv2
 import numpy as np
+import verboselogs
 from tqdm import tqdm
 
-logging.basicConfig(
-    level=logging.DEBUG
-)
+log = verboselogs.VerboseLogger(__name__)
+log.addHandler(logging.StreamHandler())
+log.setLevel(logging.INFO)
+
 
 # this is the upper and lower blue color bounds we are searching for
 # opencv HSV values differ from most image editing programs hence the calcs
@@ -44,7 +46,7 @@ def analyze_image(img_file, show_detections=False, save_detections=False, save_d
     mask, mask_count = _get_mask_for_frame(frame)
 
     if mask_count:
-        logging.debug(
+        logger.debug(
             "Found screen mask %d in image %s",
             mask_count,
             img_file
@@ -76,7 +78,7 @@ def analyze_image(img_file, show_detections=False, save_detections=False, save_d
             result_filename,
         )
 
-        logging.info(
+        log.info(
             "Saving result file to %s",
             result_filepath
         )
@@ -112,7 +114,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
     frame_height = int(cap.get(4))
     frame_total_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    logging.info(
+    log.info(
         "Opened %s (%ffps %dx%d) with %s total frames",
         video_file,
         fps,
@@ -153,7 +155,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
             (frame_width, frame_height)
         )
 
-        logging.info(
+        log.info(
             "Saving output video to %s",
             output_video_path
         )
@@ -164,7 +166,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
         success, frame = cap.read()
 
         if not success:
-            logging.info("End of video")
+            log.info("End of video")
             pbar.update(frame_total_length)
             break
 
@@ -185,7 +187,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
         mask, mask_count = _get_mask_for_frame(frame)
 
         if not mask_count and max_mask_count:
-            logging.info(
+            log.info(
                 "Mask count %d found in %s at %s",
                 max_mask_count,
                 video_file,
@@ -205,7 +207,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
                     result_filename,
                 )
 
-                logging.info(
+                log.info(
                     "Saving result file to %s",
                     result_filepath
                 )
@@ -224,7 +226,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
             max_mask_count = 0
 
         if mask_count:
-            logging.debug(
+            log.debug(
                 "Mask count %d found in %s at %s (%d)",
                 mask_count,
                 video_file,
@@ -254,7 +256,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
 
     time_finish = time.time()
 
-    logging.info(
+    log.info(
         "Processed %d of %d frames in %s and found %d key frames in %s",
         frames_processed,
         frame_count,
@@ -306,7 +308,7 @@ def _draw_timestamp(frame, timestamp, height_from_bottom = 30):
         cv2.putText(frame, str(timestamp), (50, text_y), _font, 4, _color, 3, cv2.LINE_AA)
         return True
     except Exception as ex:
-        logging.error("Could not write timestamp to frame: %s", str(ex))
+        log.error("Could not write timestamp to frame: %s", str(ex))
         return False
 
 
@@ -352,7 +354,7 @@ if __name__ == "__main__":
         analyze_dir("videos", save_detections=True)
         # analyze_video("videos/rda-flash.mp4", save_detections=True)
     except KeyboardInterrupt:
-        logging.error("Interrupted")
+        log.error("Interrupted")
     except Exception as ex:
-        logging.error(str(ex))
-        logging.exception(ex)
+        log.error(str(ex))
+        log.exception(ex)
