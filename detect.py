@@ -262,7 +262,7 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
         frame_count,
         video_file,
         detections,
-        _get_mask_for_frame(time_finish - start_time)
+        _time_conver_ms_to_timestring(time_finish - start_time)
     )
 
 def _get_mask_for_frame(frame):
