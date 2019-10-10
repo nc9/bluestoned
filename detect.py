@@ -37,7 +37,7 @@ def analyze_image(img_file, show_result=False, save_result=False, save_path=None
     result_filename = _get_result_filename(img_file)
     result_directory = os.getcwd() if not save_path else None
 
-    _draw_timestamp(frame, "20:00:00")
+    _draw_timestamp(frame, "Pixels detected: {}".format(mask_count))
 
     if show_result:
         cv2.imshow(result_filename, frame)
@@ -66,7 +66,12 @@ def analyze_image(img_file, show_result=False, save_result=False, save_path=None
 
     cv2.destroyAllWindows()
 
-def analyze_video(video_file, max_only=True, output_video=None):
+def analyze_video(video_file, max_only=True, output_video=None, show_detections=False, save_detections=False, save_detections_path=None):
+    """
+    analyze a video to spot bluescreens/chroma keys and write the result
+
+
+    """
     if not os.path.isfile(video_file):
         raise Exception("Invalid video file: {}".format(video_file))
 
@@ -82,24 +87,27 @@ def analyze_video(video_file, max_only=True, output_video=None):
     fps = cap.get(cv2.CAP_PROP_FPS)
     frame_width = int(cap.get(3))
     frame_height = int(cap.get(4))
+    frame_total_length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     logging.info(
-        "Opened video (%ffps %dx%d)",
+        "Opened %s (%ffps %dx%d) with %s total frames",
+        video_file,
         fps,
         frame_width,
-        frame_height
+        frame_height,
+        frame_total_length
     )
-
 
     out = None
     max_mask_count = 0
     max_mask_time = 0
     max_mask_frame = None
+    detections = 0
 
     if output_video:
         out = cv2.VideoWriter(
             output_video,
-            cv2.VideoWriter_fourcc('M','J','P','G'),
+            cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), # @TODO this is a shit format find something better
             10,
             (frame_width, frame_height)
         )
@@ -127,21 +135,51 @@ def analyze_video(video_file, max_only=True, output_video=None):
 
         if not mask_count and max_mask_count:
             logging.info(
-                "Frame found at %s",
-                max_mask_time
+                "Mask count %d found in %s at %s",
+                max_mask_count,
+                video_file,
+                _time_conver_ms_to_timestring(max_mask_time)
             )
-            cv2.imshow('image', max_mask_frame)
+
+            result_filename = _get_result_filename(video_file, "jpeg", detections)
+            result_directory = os.getcwd() if not save_detections_path else None
+
+            _draw_timestamp(max_mask_frame, "{} ({})".format(
+                _time_conver_ms_to_timestring(max_mask_time),
+                max_mask_count
+            ))
+
+            if save_detections:
+                result_filepath = os.path.join(
+                    result_directory,
+                    result_filename,
+                )
+
+                logging.debug(
+                    "Saving result file to %s",
+                    result_filepath
+                )
+
+                cv2.imwrite(
+                    result_filepath,
+                    max_mask_frame
+                )
+
+            if show_detections:
+                cv2.imshow(result_filename, max_mask_frame)
+
+            detections += 1
 
         if not mask_count:
             max_mask_count = 0
 
         if mask_count:
             logging.debug(
-                "Found in frame %d at %s with mask count %d of max %d",
-                frame_count,
-                _time_conver_ms_to_timestring(cap.get(cv2.CAP_PROP_POS_MSEC)),
+                "Mask count %d found in %s at %s (%d)",
                 mask_count,
-                max_mask_count
+                video_file,
+                _time_conver_ms_to_timestring(cap.get(cv2.CAP_PROP_POS_MSEC)),
+                frame_count
             )
 
             frame = _draw_bounding_boxes(frame, mask, mask_count)
@@ -205,13 +243,6 @@ def _draw_timestamp(frame, timestamp, height_from_bottom = 30):
 
     text_y = _height - height_from_bottom
 
-    logging.debug("Writing timestamp {} at {} ".format(
-        timestamp,
-        text_y,
-        _font,
-        _color
-    ))
-
     try:
         cv2.putText(frame, str(timestamp), (50, text_y), _font, 4, _color, 3, cv2.LINE_AA)
         return True
@@ -220,9 +251,17 @@ def _draw_timestamp(frame, timestamp, height_from_bottom = 30):
         return False
 
 
-def _get_result_filename(filename):
+def _get_result_filename(filename, extension=None, index=None):
     _components = os.path.splitext(os.path.basename(filename))
-    return "{}-result{}".format(_components[0], _components[1])
+
+    file_name = _components[0]
+    file_extension = extension or _components[1][1:]
+    index_format = ""
+
+    if type(index) is int:
+        index_format = "-{0:05d}".format(index)
+
+    return "{}-result{}.{}".format(file_name, index_format, file_extension)
 
 def _time_conver_ms_to_timestring(millis):
     " convert millisecond time delta as a float into a string describing time in HH:mm:ss "
@@ -242,10 +281,10 @@ def analyze_image_dir(_dir):
 
 if __name__ == "__main__":
     try:
-        analyze_image("images/rda-907.jpeg", save_result=True)
+        # analyze_image("images/rda-907.jpeg", save_result=True)
         # listdir("ex02")
         # main()
-        # analyze_video("videos/rda-flash.mp4")
+        analyze_video("videos/rda-flash.mp4", save_detections=True)
     except KeyboardInterrupt:
         logging.error("Interrupted")
     except Exception as ex:
