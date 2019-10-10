@@ -1,4 +1,9 @@
 """
+    ~~ bluestoned ~~
+
+    detect chroma keys in video and image files
+
+    (c) 2019 Nik Cubrilovic <git@nikcub.me>
 
 """
 import os
@@ -164,16 +169,15 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
             break
 
         frame_count += 1
-        time_cur = time.time()
 
         # this is a bit of a hack but we know the source is < 60fps
         if (int(fps) == 60 and (frame_count % 2 == 0)):
             pbar.update(1)
             continue
 
-        if (int(time_cur - start_time)) > fps_read_rate:
-            start_time = time_cur
-            continue
+        # if (int(time_cur - start_time)) > fps_read_rate:
+        #     start_time = time_cur
+        #     continue
 
         frames_processed += 1
         pbar.update(1)
@@ -248,12 +252,15 @@ def analyze_video(video_file, max_only=True, output_video=None, show_detections=
     cap.release()
     cv2.destroyAllWindows()
 
+    time_finish = time.time()
+
     logging.info(
-        "Processed %d of %d frames in %s and found %d key frames",
+        "Processed %d of %d frames in %s and found %d key frames in %s",
         frames_processed,
         frame_count,
         video_file,
-        detections
+        detections,
+        _get_mask_for_frame(time_finish - start_time)
     )
 
 def _get_mask_for_frame(frame):
@@ -347,4 +354,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logging.error("Interrupted")
     except Exception as ex:
+        logging.error(str(ex))
         logging.exception(ex)
