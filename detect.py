@@ -18,29 +18,49 @@ BLUE_LOWER = np.array([232 / 2, 0.81 * 255, 0.75 * 255])
 BLUE_UPPER = np.array([240 / 2, 1 * 255, 1 * 255])
 
 
-def analyze_image(img_file):
+def analyze_image(img_file, show_result=False, save_result=False, save_path=None):
     if not os.path.isfile(img_file):
         raise Exception("Not an image: {}".format(img_file))
 
-    img = cv2.imread(img_file)
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    mask = cv2.inRange(hsv, BLUE_LOWER, BLUE_UPPER)
+    frame = cv2.imread(img_file)
+    mask, mask_count = _get_mask_for_frame(frame)
 
-    contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    cont_sorted = sorted(contours, key=cv2.contourArea, reverse=True)[:5]
-    x,y,w,h = cv2.boundingRect(cont_sorted[0])
-    cv2.rectangle(img,(x-30,y-30),(x+w+60,y+h+60),(0,0,255),5)
+    if mask_count:
+        logging.debug(
+            "Found screen mask %d in image %s",
+            mask_count,
+            img_file
+        )
 
+        frame = _draw_bounding_boxes(frame, mask, mask_count)
 
-    if cv2.countNonZero(mask) > 3:
-        print("Found in {} {}".format(img_file, cv2.countNonZero(mask)))
+    result_filename = _get_result_filename(img_file)
+    result_directory = os.getcwd() if not save_path else None
 
-    cv2.imshow("mask", img)
+    if show_result:
+        cv2.imshow(result_filename, frame)
 
-    # keep the image open until the user hits q
-    while True:
-        if cv2.waitKey(5) & 0xFF == ord('q'):
-            break
+        # keep the image open until the user hits q
+        while True:
+            if cv2.waitKey(5) & 0xFF == ord('q'):
+                break
+
+    if save_result:
+        result_filepath = os.path.join(
+            result_directory,
+            result_filename,
+        )
+
+        logging.debug(
+            "Saving result file to %s",
+            result_filepath
+        )
+
+        cv2.imwrite(
+            result_filepath,
+            frame
+        )
+
 
     cv2.destroyAllWindows()
 
@@ -176,6 +196,9 @@ def _draw_bounding_boxes(frame, mask, mask_count=0):
     cv2.rectangle(frame, (x - 30, y - 30), (x + w + 60, y + h + 60), rec_color, rec_size)
     return frame
 
+def _get_result_filename(filename):
+    _components = os.path.splitext(os.path.basename(filename))
+    return "{}-result{}".format(_components[0], _components[1])
 
 def _time_conver_ms_to_timestring(millis):
     " convert millisecond time delta as a float into a string describing time in HH:mm:ss "
@@ -195,10 +218,10 @@ def analyze_image_dir(_dir):
 
 if __name__ == "__main__":
     try:
-        # read_image("images/rda-907.jpeg")
+        analyze_image("images/rda-907.jpeg", save_result=True)
         # listdir("ex02")
         # main()
-        analyze_video("videos/rda-flash.mp4")
+        # analyze_video("videos/rda-flash.mp4")
     except KeyboardInterrupt:
         logging.error("Interrupted")
     except Exception as ex:
