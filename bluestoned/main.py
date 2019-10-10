@@ -12,6 +12,8 @@ import sys
 import time
 import logging
 
+__version__ = '0.1.2'
+
 try:
     import cv2
 except ImportError:
@@ -484,7 +486,11 @@ def main():
 
     _setup_logger(args.verbosity, args.log_file)
 
-    LOG.debug("Running with %s %r", sys.argv, args)
+    print("bluestoned v%s".format(__version__))
+
+    LOG.debug("Running with %s \n %r", sys.argv, args)
+    LOG.debug("OpenCV version %s", cv2.__version__)
+    LOG.debug(cv2.getBuildInformation())
 
     _path = os.path.realpath(args.path)
 
