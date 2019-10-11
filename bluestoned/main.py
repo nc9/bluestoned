@@ -11,6 +11,9 @@ import os
 import sys
 import time
 import logging
+import requests
+import shutil
+import tempfile
 
 __version__ = '0.1.2'
 
@@ -386,6 +389,14 @@ def _setup_logger(verbosity, log_file):
 
     return log
 
+def _download_file(url):
+    local_filename = url.split('/')[-1]
+    with requests.get(url, stream=True) as rh, tempfile.NamedTemporaryFile(mode="wb", delete=False) as fh:
+        # rh.status_code
+        # with open(local_filename, 'wb') as f:
+        shutil.copyfileobj(rh.raw, fh)
+
+    return local_filename
 
 def analyze_dir(_dir, **kwargs):
     """ walk a directory and analyze videos """

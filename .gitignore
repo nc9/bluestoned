@@ -4,3 +4,4 @@ images/
 *.jpeg
 __pycache__
 dist/
+output/
