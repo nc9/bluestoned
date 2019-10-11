@@ -412,7 +412,7 @@ def analyze_dir(_dir, **kwargs):
             ret += analyze_video(os.path.join(_dir, file_name), **kwargs)
 
         if _file_ex in VALID_IMAGE_EXT:
-            kwargs.pop("output_video")
+            kwargs.pop("output_video", None)
             ret += analyze_image(os.path.join(_dir, file_name), **kwargs)
 
     return ret
