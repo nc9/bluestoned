@@ -33,19 +33,21 @@ LOG = logging.getLogger("main")
 
 # this is the upper and lower blue color bounds we are searching for
 # opencv HSV values differ from most image editing programs hence the calcs
-BLUE_LOWER = np.array([232 / 2, 0.81 * 255, 0.75 * 255])
-BLUE_UPPER = np.array([240 / 2, 1 * 255, 1 * 255])
+# BLUE_LOWER = np.array([232 / 2, 0.81 * 255, 0.75 * 255])
+# BLUE_UPPER = np.array([240 / 2, 1 * 255, 1 * 255])
+BLUE_LOWER = np.array([240 / 2, 0.81 * 255, 0.75 * 255])
+BLUE_UPPER = np.array([243 / 2, 1 * 255, 1 * 255])
 
 VALID_VIDEO_EXT = set(
     [
         ".mp4",
         ".mkv",
         ".avi",
-        # ".webm"
+        ".webm"
     ]
 )
 
-VALID_IMAGE_EXT = set([".jpeg", ".jpg", ".png"])
+VALID_IMAGE_EXT = set([".jpeg", ".jpg", ".png", ".gif", ".bmp", ".tiff"])
 
 
 def analyze_image(
@@ -62,7 +64,7 @@ def analyze_image(
         save_detections_path,
     )
 
-    LOG.info("Analyzing image %s", img_file)
+    LOG.debug("Analyzing image %s", img_file)
 
     if not os.path.isfile(img_file):
         raise Exception("Not an image: {}".format(img_file))
@@ -74,6 +76,8 @@ def analyze_image(
         LOG.info("Found screen mask %d in image %s", mask_count, img_file)
 
         _draw_bounding_boxes(frame, mask, mask_count)
+    else:
+        return False
 
     result_directory = "output" if not save_detections_path else save_detections_path
     result_directory = os.path.realpath(result_directory)
@@ -432,6 +436,39 @@ def analyze_file(_file, **kwargs):
 
     return False
 
+def run_tests(_path):
+    if not os.path.isdir(_path):
+        raise Exception("invalid tests folder {}".format(_path))
+
+    _true_path = os.path.join(_path, "true")
+    _false_path = os.path.join(_path, "false")
+
+    if not os.path.isdir(_true_path):
+        raise Exception("invalid tests true path {}".format(_true_path))
+
+    if not os.path.isdir(_false_path):
+        raise Exception("invalid tests false path {}".format(_false_path))
+
+    _thresh = 8
+
+    for file_name in os.listdir(_true_path):
+        _val = analyze_image(
+            os.path.join(_true_path, file_name),
+            threshold=_thresh
+        )
+
+        if not _val:
+            LOG.error("Failed test for {}".format(file_name))
+
+    for file_name in os.listdir(_false_path):
+        _val = analyze_image(
+            os.path.join(_false_path, file_name),
+            threshold=_thresh
+        )
+
+        if _val:
+            LOG.error("Failed test for {}".format(file_name))
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -487,6 +524,13 @@ def main():
         dest="verbosity",
         help="quiet output (show errors only)",
     )
+    parser.add_argument(
+        "--test",
+        dest="test",
+        action="store_true",
+        default=False,
+        help="run tests against test folder",
+    )
     args = parser.parse_args()
 
     if args.debug:
@@ -502,8 +546,11 @@ def main():
 
     _path = os.path.realpath(args.path)
 
+    if args.test:
+        return run_tests(_path)
+
     if os.path.isdir(_path):
-        analyze_dir(
+        return analyze_dir(
             _path,
             threshold=args.threshold,
             output_video=args.save_video,
@@ -511,7 +558,7 @@ def main():
             save_detections_path=args.save_detections_path,
         )
     else:
-        analyze_file(
+        return analyze_file(
             _path,
             threshold=args.threshold,
             save_detections=bool(args.save_detections),
