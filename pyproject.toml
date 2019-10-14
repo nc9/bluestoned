@@ -12,6 +12,7 @@ numpy = "^1.17"
 tqdm = "^4.36"
 verboselogs = "^1.7"
 requests = "^2.22"
+imutils = "^0.5.3"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.4"
